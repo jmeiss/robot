@@ -272,6 +272,126 @@
           });
         }
       });
+
+      // Enhanced offline support
+      let appCache = window.applicationCache;
+
+      function updateCacheStatus() {
+        const offlineStatus = document.getElementById("offline-status");
+        if (navigator.onLine) {
+          offlineStatus.style.display = "none";
+          offlineStatus.innerHTML =
+            "<strong>Offline Mode:</strong> You're viewing a cached version of this page.";
+        } else {
+          offlineStatus.style.display = "block";
+          offlineStatus.innerHTML =
+            "<strong>Offline Mode:</strong> You're viewing a cached version of this page.";
+        }
+      }
+
+      // Application cache event handlers
+      function handleCacheEvent(e) {
+        console.log("Cache event: " + e.type);
+      }
+
+      function handleCacheError(e) {
+        console.error("Cache error: " + e.type);
+        logMessage(
+          "cache",
+          "Error occurred during caching. Refresh may not work offline."
+        );
+      }
+
+      // Store critical page data in localStorage as backup
+      function backupPageData() {
+        try {
+          localStorage.setItem("robot-ip-value", robotIpInput.value);
+          localStorage.setItem("page-html", document.documentElement.outerHTML);
+          console.log("Page data backed up to localStorage");
+        } catch (e) {
+          console.error("Failed to backup to localStorage", e);
+        }
+      }
+
+      // Restore data from localStorage if needed (when offline)
+      function restoreFromBackup() {
+        if (
+          !navigator.onLine &&
+          !document.getElementById("offline-status").style.display
+        ) {
+          // We're offline but the cache indicator isn't showing - might be a cache miss
+          const savedIP = localStorage.getItem("robot-ip-value");
+          if (savedIP) {
+            robotIpInput.value = savedIP;
+            logMessage("cache", "Restored saved robot IP from backup");
+          }
+        }
+      }
+
+      // Initialize
+      document.addEventListener("DOMContentLoaded", () => {
+        updateOnlineStatus();
+        restoreFromBackup();
+
+        // Register all cache event listeners
+        if (appCache) {
+          // Cache events
+          appCache.addEventListener("checking", handleCacheEvent, false);
+          appCache.addEventListener("downloading", handleCacheEvent, false);
+          appCache.addEventListener("progress", handleCacheEvent, false);
+          appCache.addEventListener("cached", handleCacheEvent, false);
+          appCache.addEventListener("noupdate", handleCacheEvent, false);
+          appCache.addEventListener(
+            "updateready",
+            function () {
+              if (appCache.status === appCache.UPDATEREADY) {
+                appCache.swapCache();
+                logMessage("cache", "Application cache updated successfully");
+              }
+            },
+            false
+          );
+          appCache.addEventListener("obsolete", handleCacheEvent, false);
+
+          // Cache error
+          appCache.addEventListener("error", handleCacheError, false);
+        }
+
+        // Add handler for install button with improved functionality
+        document
+          .getElementById("install-offline")
+          .addEventListener("click", () => {
+            backupPageData();
+
+            if (appCache) {
+              try {
+                appCache.update();
+                alert(
+                  "The page has been cached for offline use. You can now access it without an internet connection."
+                );
+                logMessage("cache", "Cache update initiated");
+              } catch (e) {
+                alert(
+                  "Caching failed. Please try again or check console for errors."
+                );
+                console.error("Cache update failed:", e);
+              }
+            } else {
+              alert(
+                "Your browser does not support Application Cache. Basic offline backup has been created."
+              );
+            }
+          });
+
+        // Periodically backup state
+        setInterval(backupPageData, 30000); // Every 30 seconds
+      });
+
+      window.addEventListener("online", updateOnlineStatus);
+      window.addEventListener("offline", updateOnlineStatus);
+
+      // Before page unload, save state
+      window.addEventListener("beforeunload", backupPageData);
     </script>
   </body>
 </html>

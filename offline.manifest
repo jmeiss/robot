@@ -1,8 +1,9 @@
 CACHE MANIFEST
-# Version 1.0.0
+# Version 1.0.1 - Update this version number to force cache refresh
 
 CACHE:
 index.html
+# Add any other resources here if you have images, CSS, or JS files
 
 NETWORK:
 *
