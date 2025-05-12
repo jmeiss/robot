@@ -15,7 +15,9 @@
     <meta name="theme-color" content="#17a2b8" />
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="icon-192x192.png" />
-    <!-- PWA iOS Support -->
+    <!-- PWA Device Support -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <!-- Keep for iOS backward compatibility -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="Robot Control" />
@@ -65,7 +67,10 @@
             Your device
             <strong>must be on the same local WiFi/network</strong> as the robot
           </li>
-          <li>Enter the robot's local IP address (e.g., 192.168.1.55)</li>
+          <li>
+            Enter the robot's local IP address (e.g., 192.168.1.55 or
+            raspberrypi.local)
+          </li>
           <li>Click Connect</li>
         </ol>
         <p>
@@ -84,7 +89,7 @@
 
       <div class="form-group">
         <label for="robot-ip">Robot IP:</label>
-        <input id="robot-ip" type="text" value="192.168.1.55" />
+        <input id="robot-ip" type="text" value="raspberrypi.local" />
         <button id="connect-button">Connect</button>
         <span id="connection-status">Disconnected</span>
       </div>
