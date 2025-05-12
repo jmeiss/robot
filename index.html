@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1"
+    />
+    <title>POC Learning Robots WS</title>
+    <style>
+      #message-log {
+        white-space: pre-wrap;
+        font-family: monospace;
+        margin-top: 20px;
+        border: 1px solid #ccc;
+        padding: 10px;
+        height: 300px;
+        overflow-y: auto;
+      }
+      .form-group {
+        margin-bottom: 10px;
+      }
+      label {
+        display: inline-block;
+        width: 100px;
+      }
+      .instructions {
+        background-color: #f8f9fa;
+        border-left: 4px solid #17a2b8;
+        padding: 10px 15px;
+        margin-bottom: 20px;
+      }
+      .warning {
+        color: #721c24;
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 4px;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="instructions">
+        <h3>Local Network Connection Instructions</h3>
+        <p>
+          This interface connects directly to your robot on your local network:
+        </p>
+        <ol>
+          <li>
+            Your device
+            <strong>must be on the same local WiFi/network</strong> as the robot
+          </li>
+          <li>Enter the robot's local IP address (e.g., 192.168.1.55)</li>
+          <li>Click Connect</li>
+        </ol>
+        <p>
+          <strong>Important:</strong> All communication happens directly between
+          your device and the robot on your local network. No data is sent
+          through the internet.
+        </p>
+      </div>
+
+      <div id="network-warning" class="warning">
+        <strong>Local Network Required:</strong> This page can only connect to
+        robots on the same local network as your device. Even though the page is
+        hosted online, the WebSocket connection itself is direct from your
+        device to the robot.
+      </div>
+
+      <div class="form-group">
+        <label for="robot-ip">Robot IP:</label>
+        <input id="robot-ip" type="text" value="192.168.1.55" />
+        <button id="connect-button">Connect</button>
+        <span id="connection-status">Disconnected</span>
+      </div>
+
+      <div class="form-group">
+        <label for="message-input">Message:</label>
+        <input id="message-input" type="text" disabled />
+        <button id="send-button" disabled>Send</button>
+      </div>
+
+      <div id="message-log"></div>
+    </div>
+
+    <script>
+      const robotIpInput = document.getElementById("robot-ip");
+      const connectButton = document.getElementById("connect-button");
+      const connectionStatus = document.getElementById("connection-status");
+      const messageInput = document.getElementById("message-input");
+      const sendButton = document.getElementById("send-button");
+      const messageLog = document.getElementById("message-log");
+
+      let ws = null;
+
+      function logMessage(source, message) {
+        messageLog.textContent += `[${source}] ${message}\n`;
+        messageLog.scrollTop = messageLog.scrollHeight;
+      }
+
+      function connectToRobot() {
+        if (ws) {
+          ws.close();
+        }
+
+        const robotIp = robotIpInput.value.trim();
+        const robotWsUrl = `ws://${robotIp}:9000`;
+
+        try {
+          ws = new WebSocket(robotWsUrl);
+
+          ws.onopen = () => {
+            logMessage("web", "Connected to robot");
+            connectionStatus.textContent = "Connected";
+            messageInput.disabled = false;
+            sendButton.disabled = false;
+            connectButton.textContent = "Disconnect";
+          };
+
+          ws.onmessage = (event) => {
+            logMessage("robot", event.data);
+          };
+
+          ws.onerror = (err) => {
+            logMessage("error", err.message || "Connection error");
+
+            // Add more helpful error message for common issues
+            if (window.location.protocol === "https:") {
+              logMessage(
+                "error",
+                "Note: Secure (HTTPS) pages can only connect to secure WebSockets (WSS). Your robot may need to support secure WebSockets."
+              );
+            }
+
+            logMessage("error", "If you're having trouble connecting, ensure:");
+            logMessage(
+              "error",
+              "1. The robot is powered on and connected to the network"
+            );
+            logMessage(
+              "error",
+              "2. Your device is on the same network as the robot"
+            );
+            logMessage(
+              "error",
+              "3. The robot's WebSocket server has CORS enabled"
+            );
+          };
+
+          ws.onclose = () => {
+            logMessage("web", "Connection closed");
+            connectionStatus.textContent = "Disconnected";
+            messageInput.disabled = true;
+            sendButton.disabled = true;
+            connectButton.textContent = "Connect";
+            ws = null;
+          };
+        } catch (error) {
+          logMessage("error", error.message || "Failed to create WebSocket");
+        }
+      }
+
+      function sendMessage() {
+        const message = messageInput.value.trim();
+        if (message && ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(message);
+          logMessage("web", `Sent: ${message}`);
+          messageInput.value = "";
+        }
+      }
+
+      connectButton.addEventListener("click", () => {
+        if (ws) {
+          ws.close();
+        } else {
+          connectToRobot();
+        }
+      });
+
+      sendButton.addEventListener("click", sendMessage);
+
+      messageInput.addEventListener("keypress", (event) => {
+        if (event.key === "Enter") {
+          sendMessage();
+        }
+      });
+
+      // Add check for hosted environment
+      function checkHostedEnvironment() {
+        // Check if we're running on a non-localhost domain
+        if (
+          window.location.hostname !== "localhost" &&
+          window.location.hostname !== "127.0.0.1" &&
+          !window.location.hostname.includes(".local")
+        ) {
+          document.getElementById("network-warning").style.display = "block";
+        }
+      }
+
+      // Initialize
+      checkHostedEnvironment();
+    </script>
+  </body>
+</html>
