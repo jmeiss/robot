@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" manifest="offline.manifest">
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -7,20 +7,7 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1"
     />
     <title>POC Learning Robots WS</title>
-    <!-- PWA Meta Tags -->
-    <meta
-      name="description"
-      content="Robot control interface for local network communication"
-    />
     <meta name="theme-color" content="#17a2b8" />
-    <link rel="manifest" href="manifest.json" />
-    <link rel="apple-touch-icon" href="icon-192x192.png" />
-    <!-- PWA Device Support -->
-    <meta name="mobile-web-app-capable" content="yes" />
-    <!-- Keep for iOS backward compatibility -->
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
-    <meta name="apple-mobile-web-app-title" content="Robot Control" />
     <style>
       #message-log {
         white-space: pre-wrap;
@@ -53,10 +40,44 @@
         border-radius: 4px;
         display: none;
       }
+      .install-button {
+        display: inline-block;
+        background-color: #28a745;
+        color: white;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 10px;
+        margin-bottom: 10px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+      .install-button:hover {
+        background-color: #218838;
+      }
+      .offline-status {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+        border-radius: 4px;
+        padding: 8px 12px;
+        margin-bottom: 10px;
+        display: none;
+      }
     </style>
   </head>
   <body>
     <div id="root">
+      <div id="offline-status" class="offline-status">
+        <strong>Offline Mode:</strong> You're viewing a cached version of this
+        page.
+      </div>
+
+      <button id="install-offline" class="install-button">
+        Install for Offline Use
+      </button>
+
       <div class="instructions">
         <h3>Local Network Connection Instructions</h3>
         <p>
@@ -142,7 +163,8 @@
           };
 
           ws.onerror = (err) => {
-            logMessage("error", err.message || "Connection error");
+            // Don't access the error object directly as it might not be serializable
+            logMessage("error", "Connection error occurred");
 
             // Add more helpful error message for common issues
             if (window.location.protocol === "https:") {
@@ -176,7 +198,8 @@
             ws = null;
           };
         } catch (error) {
-          logMessage("error", error.message || "Failed to create WebSocket");
+          // Use safe error handling that doesn't rely on serializing the error object
+          logMessage("error", "Failed to create WebSocket connection");
         }
       }
 
@@ -205,66 +228,50 @@
         }
       });
 
-      // Add check for hosted environment
-      function checkHostedEnvironment() {
-        // Check if we're running on a non-localhost domain
-        if (
-          window.location.hostname !== "localhost" &&
-          window.location.hostname !== "127.0.0.1" &&
-          !window.location.hostname.includes(".local")
-        ) {
-          document.getElementById("network-warning").style.display = "block";
+      // Offline detection
+      function updateOnlineStatus() {
+        const offlineStatus = document.getElementById("offline-status");
+        if (navigator.onLine) {
+          offlineStatus.style.display = "none";
+        } else {
+          offlineStatus.style.display = "block";
         }
       }
 
-      // PWA Service Worker Registration
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", function () {
-          navigator.serviceWorker
-            .register("service-worker.js")
-            .then((reg) => console.log("Service Worker: Registered"))
-            .catch((err) => console.log(`Service Worker: Error: ${err}`));
-        });
-      }
-
-      // Check for offline status
-      window.addEventListener("offline", function () {
-        logMessage(
-          "system",
-          "You are now offline. The app will continue to function, but you cannot establish new connections until back online."
-        );
-      });
-
-      window.addEventListener("online", function () {
-        logMessage("system", "You are back online.");
-      });
-
-      // Add install prompt for PWA
-      let deferredPrompt;
-      const installButton = document.createElement("button");
-      installButton.style.display = "none";
-      installButton.textContent = "Install Robot Control App";
-      installButton.className = "install-button";
-      document.querySelector(".instructions").appendChild(installButton);
-
-      window.addEventListener("beforeinstallprompt", (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        installButton.style.display = "block";
-      });
-
-      installButton.addEventListener("click", async () => {
-        if (deferredPrompt) {
-          deferredPrompt.prompt();
-          const { outcome } = await deferredPrompt.userChoice;
-          console.log(`User response to the install prompt: ${outcome}`);
-          deferredPrompt = null;
-          installButton.style.display = "none";
-        }
-      });
+      window.addEventListener("online", updateOnlineStatus);
+      window.addEventListener("offline", updateOnlineStatus);
 
       // Initialize
-      checkHostedEnvironment();
+      document.addEventListener("DOMContentLoaded", () => {
+        updateOnlineStatus();
+
+        // Add handler for install button
+        document
+          .getElementById("install-offline")
+          .addEventListener("click", () => {
+            alert(
+              "The page has been cached for offline use. You can now access it without an internet connection."
+            );
+
+            // Force update of application cache
+            if (window.applicationCache) {
+              window.applicationCache.update();
+            }
+          });
+
+        // Application cache events
+        if (window.applicationCache) {
+          window.applicationCache.addEventListener("updateready", () => {
+            if (
+              window.applicationCache.status ===
+              window.applicationCache.UPDATEREADY
+            ) {
+              window.applicationCache.swapCache();
+              console.log("Application cache updated successfully");
+            }
+          });
+        }
+      });
     </script>
   </body>
 </html>
