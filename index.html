@@ -7,6 +7,18 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1"
     />
     <title>POC Learning Robots WS</title>
+    <!-- PWA Meta Tags -->
+    <meta
+      name="description"
+      content="Robot control interface for local network communication"
+    />
+    <meta name="theme-color" content="#17a2b8" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icon-192x192.png" />
+    <!-- PWA iOS Support -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="Robot Control" />
     <style>
       #message-log {
         white-space: pre-wrap;
@@ -199,6 +211,52 @@
           document.getElementById("network-warning").style.display = "block";
         }
       }
+
+      // PWA Service Worker Registration
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker
+            .register("service-worker.js")
+            .then((reg) => console.log("Service Worker: Registered"))
+            .catch((err) => console.log(`Service Worker: Error: ${err}`));
+        });
+      }
+
+      // Check for offline status
+      window.addEventListener("offline", function () {
+        logMessage(
+          "system",
+          "You are now offline. The app will continue to function, but you cannot establish new connections until back online."
+        );
+      });
+
+      window.addEventListener("online", function () {
+        logMessage("system", "You are back online.");
+      });
+
+      // Add install prompt for PWA
+      let deferredPrompt;
+      const installButton = document.createElement("button");
+      installButton.style.display = "none";
+      installButton.textContent = "Install Robot Control App";
+      installButton.className = "install-button";
+      document.querySelector(".instructions").appendChild(installButton);
+
+      window.addEventListener("beforeinstallprompt", (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        installButton.style.display = "block";
+      });
+
+      installButton.addEventListener("click", async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          console.log(`User response to the install prompt: ${outcome}`);
+          deferredPrompt = null;
+          installButton.style.display = "none";
+        }
+      });
 
       // Initialize
       checkHostedEnvironment();
